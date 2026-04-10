@@ -10,5 +10,5 @@ from animalai.play import play
 
 play(
     configuration_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "example_arena.yml"),
-    env_path=r"AAI_EXE_PATH_PLACEHOLDER",
+    env_path=os.environ["AAI_EXE_PATH"],
 )

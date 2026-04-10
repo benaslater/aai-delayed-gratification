@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "animal-ai-python"))
 
 from animalai.environment import AnimalAIEnvironment
 
-AAI_EXE_PATH = r"AAI_EXE_PATH_PLACEHOLDER"
+AAI_EXE_PATH = os.environ["AAI_EXE_PATH"]
 CONFIGS_DIR = Path(__file__).parent / "configs"
 
 forwards_action = ActionTuple(np.zeros((1, 0), dtype=np.float32), np.array([[1, 0]], dtype=np.int32))
