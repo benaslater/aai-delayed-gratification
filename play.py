@@ -9,6 +9,6 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "animal-ai-python"))
 from animalai.play import play
 
 play(
-    configuration_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "example_arena.yml"),
+    configuration_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "CONFIG_FILE_NAME.yml"),
     env_path=os.environ["AAI_EXE_PATH"],
 )

@@ -103,9 +103,12 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Print each trial as it runs")
     args = parser.parse_args()
 
-    configs = sorted(CONFIGS_DIR.glob("*.yml"))
+    configs = sorted(
+        CONFIGS_DIR.glob("ramp_height_*.yml"),
+        key=lambda p: float(p.stem.removeprefix("ramp_height_")),
+    )
     if not configs:
-        print(f"No YAML files found in {CONFIGS_DIR}")
+        print(f"No ramp_height_*.yml files found in {CONFIGS_DIR}")
         return
 
     results = []
