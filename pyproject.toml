@@ -1,0 +1,10 @@
+[project]
+name = "task-instance-generation"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "animalai",
+]
+
+[tool.uv.sources]
+animalai = { path = "../animal-ai-python", editable = true }
