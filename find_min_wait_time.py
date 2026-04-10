@@ -1,33 +1,38 @@
 """
 Drives the AnimalAI agent with N no-op steps followed by forwards movement.
-Searches for the minimum number of no-ops needed for the rolling reward (GoodGoalMulti)
-to reach the agent before the episode-ending goal (GoodGoal) is collected.
-Follows the pattern from https://github.com/Kinds-of-Intelligence-CFI/animal-ai-e2e
+For each YAML config in the configs/ folder, finds the minimum number of no-ops
+needed for the rolling reward (GoodGoalMulti) to reach the agent before the
+episode-ending goal (GoodGoal) is collected.
+
+Usage:
+    uv run python find_min_wait_time.py           # table output only
+    uv run python find_min_wait_time.py --verbose  # show each trial
 """
 
+import argparse
 import os
 import sys
 import numpy as np
+from pathlib import Path
 from mlagents_envs.base_env import ActionTuple
 
 # Add the local animal-ai-python package to the path
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-AAI_PYTHON_PATH = os.path.join(REPO_ROOT, "animal-ai-python")
-sys.path.insert(0, AAI_PYTHON_PATH)
+sys.path.insert(0, os.path.join(REPO_ROOT, "animal-ai-python"))
 
 from animalai.environment import AnimalAIEnvironment
 
 AAI_EXE_PATH = r"AAI_EXE_PATH_PLACEHOLDER"
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "example_arena.yml")
+CONFIGS_DIR = Path(__file__).parent / "configs"
 
 forwards_action = ActionTuple(np.zeros((1, 0), dtype=np.float32), np.array([[1, 0]], dtype=np.int32))
 nothing_action  = ActionTuple(np.zeros((1, 0), dtype=np.float32), np.array([[0, 0]], dtype=np.int32))
 
 
-def run_episode(config_file: str, exe_path: str, n_noop: int) -> float:
+def run_episode(config_file: str, n_noop: int) -> float:
     """Run one episode: n_noop no-op steps then forwards until done. Returns total reward."""
     env = AnimalAIEnvironment(
-        file_name=exe_path,
+        file_name=AAI_EXE_PATH,
         arenas_configurations=config_file,
         seed=42,
         useCamera=True,
@@ -63,22 +68,21 @@ def run_episode(config_file: str, exe_path: str, n_noop: int) -> float:
         env.close()
 
 
-def try_noop(config_file: str, exe_path: str, n: int) -> bool:
-    print(f"Trying {n} no-op(s)... ", end="", flush=True)
-    reward = run_episode(config_file, exe_path, n)
+def try_noop(config_file: str, n: int, verbose: bool) -> bool:
+    reward = run_episode(config_file, n)
     passed = reward > 1.5
-    print(f"reward={reward:.4f} -> {'PASS' if passed else 'FAIL'}")
+    if verbose:
+        print(f"  {n} no-op(s): reward={reward:.4f} -> {'PASS' if passed else 'FAIL'}")
     return passed
 
 
-def find_min_noop(config_file: str, exe_path: str) -> None:
-    """Search for the minimum number of no-ops for the rolling reward to be collected."""
+def find_min_noop(config_file: str, verbose: bool) -> int:
+    """Return the minimum number of no-ops for the rolling reward to be collected."""
     # Phase 1: exponential search to find an upper bound
-    if try_noop(config_file, exe_path, 0):
-        print(f"\nMinimum no-ops needed: 0")
-        return
+    if try_noop(config_file, 0, verbose):
+        return 0
     n = 1
-    while not try_noop(config_file, exe_path, n):
+    while not try_noop(config_file, n, verbose):
         n *= 2
     hi = n
     lo = n // 2  # last known failure
@@ -86,13 +90,38 @@ def find_min_noop(config_file: str, exe_path: str) -> None:
     # Phase 2: binary search in [lo+1, hi]
     while lo + 1 < hi:
         mid = (lo + hi) // 2
-        if try_noop(config_file, exe_path, mid):
+        if try_noop(config_file, mid, verbose):
             hi = mid
         else:
             lo = mid
 
-    print(f"\nMinimum no-ops needed: {hi}")
+    return hi
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--verbose", action="store_true", help="Print each trial as it runs")
+    args = parser.parse_args()
+
+    configs = sorted(CONFIGS_DIR.glob("*.yml"))
+    if not configs:
+        print(f"No YAML files found in {CONFIGS_DIR}")
+        return
+
+    results = []
+    for config in configs:
+        if args.verbose:
+            print(f"\n--- {config.name} ---")
+        min_noops = find_min_noop(str(config), args.verbose)
+        results.append((config.name, min_noops))
+
+    # Print table
+    name_w = max(len(name) for name, _ in results)
+    print(f"\n{'Filename':<{name_w}}  Min no-ops")
+    print(f"{'-' * name_w}  ----------")
+    for name, noops in results:
+        print(f"{name:<{name_w}}  {noops}")
 
 
 if __name__ == "__main__":
-    find_min_noop(CONFIG_FILE, AAI_EXE_PATH)
+    main()
