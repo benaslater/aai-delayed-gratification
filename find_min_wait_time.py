@@ -127,7 +127,7 @@ def main():
         print(f"{name:<{name_w}}  {noops}")
 
     # Write CSV
-    csv_path = Path(__file__).parent / "results.csv"
+    csv_path = Path(__file__).parent / "min_wait_times.csv"
     with csv_path.open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["filename", "min_noops"])
