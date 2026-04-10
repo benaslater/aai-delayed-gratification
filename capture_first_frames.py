@@ -1,5 +1,5 @@
 """
-For each ramp_height_*.yml config in configs/, captures the first N camera frames
+For each ramp_*.yml config in configs/, captures the first N camera frames
 and saves them to frames/frame_000/, frames/frame_001/, etc.
 
 Usage:
@@ -13,6 +13,7 @@ import sys
 import numpy as np
 from pathlib import Path
 from PIL import Image
+from config_utils import add_filter_args, get_configs
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "animal-ai-python"))
@@ -60,14 +61,12 @@ def capture_frames(config_file: str, n: int) -> list[np.ndarray]:
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--n", type=int, default=5, help="Number of frames to capture (default: 5)")
+    add_filter_args(parser)
     args = parser.parse_args()
 
-    configs = sorted(
-        CONFIGS_DIR.glob("ramp_height_*.yml"),
-        key=lambda p: float(p.stem.removeprefix("ramp_height_")),
-    )
+    configs = get_configs(args)
     if not configs:
-        print(f"No ramp_height_*.yml files found in {CONFIGS_DIR}")
+        print(f"No matching configs found in {CONFIGS_DIR}")
         return
 
     for config in configs:

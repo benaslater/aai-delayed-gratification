@@ -1,13 +1,17 @@
 """
-Generate arena config YAML files by systematically varying the ramp height.
+Generate arena config YAML files as the cross product of:
+  - ramp heights
+  - main goal type  (GoodGoal | GoodGoalMulti | absent)
+  - ramp goal type  (GoodGoal | GoodGoalMulti | absent)
+  - wall goal type  (GoodGoal | GoodGoalMulti | absent)
 
-For each height, the GoodGoalMulti position and the blocking wall height are
-adjusted to remain consistent with the ramp geometry:
-  - Ramp size y         = ramp_height
-  - GoodGoalMulti y     = ramp_base_y + ramp_height  (sits on top of ramp)
-  - Red wall size y     = ramp_base_y + ramp_height  (matches ramp top)
+Ramp geometry is kept consistent across heights:
+  - Ramp size y   = ramp_height
+  - Ramp goal y   = ramp_base_y + ramp_height  (sits on top of ramp)
+  - Wall goal y   = 12.0 (one unit above the fixed red wall top at y=11)
+  - Red wall size y = 11.0 (fixed)
 
-Output files are written to configs/ramp_height_<h>.yml.
+Output files: configs/ramp_{h}_main_{main_type}_ramp_{ramp_type}_wall_{wall_type}.yml
 
 Usage:
     uv run python generate_configs.py
@@ -15,16 +19,41 @@ Usage:
 """
 
 import argparse
+from itertools import product
 from pathlib import Path
 
 CONFIGS_DIR = Path(__file__).parent / "configs"
-
-# Ramp base position (y stays fixed; only the size varies)
 RAMP_BASE_Y = 1.0
+WALL_GOAL_Y = 12.0
+
+GOAL_TYPES = ["GoodGoal", "GoodGoalMulti", "absent"]
+
+GOAL_COLORS = {
+    "GoodGoal":      "{r: 0, g: 256, b: 0}",
+    "GoodGoalMulti": "{r: 255, g: 255, b: 0}",
+}
 
 
-def make_arena(ramp_height: float) -> str:
-    goal_multi_y = RAMP_BASE_Y + ramp_height
+def goal_item(name: str, x: float, y: float, z: float) -> str:
+    return f"""\
+    - !Item
+      name: {name}
+      positions:
+      - !Vector3 {{x: {x:.1f}, y: {y:.1f}, z: {z:.1f}}}
+      rotations:
+      - 0
+      sizes:
+      - !Vector3 {{x: 1.0, y: 1.0, z: 1.0}}
+      colors:
+      - !RGB {GOAL_COLORS[name]}"""
+
+
+def make_arena(ramp_height: float, main_type: str, ramp_type: str, wall_type: str) -> str:
+    ramp_goal_y = RAMP_BASE_Y + ramp_height
+
+    main_item = "" if main_type == "absent" else goal_item(main_type, 20.0, 0.0, 25.0) + "\n"
+    ramp_item = "" if ramp_type == "absent" else goal_item(ramp_type, 9.0, ramp_goal_y, 15.0) + "\n"
+    wall_item = "" if wall_type == "absent" else goal_item(wall_type, 15, 0, 11) + "\n"
 
     return f"""\
 !ArenaConfig
@@ -33,16 +62,7 @@ arenas:
     pass_mark: 0
     t: 0
     items:
-    - !Item
-      name: GoodGoal
-      positions:
-      - !Vector3 {{x: 20.0, y: 0.0, z: 25.0}}
-      rotations:
-      - 0
-      sizes:
-      - !Vector3 {{x: 1.0, y: 1.0, z: 1.0}}
-      colors:
-      - !RGB {{r: 0, g: 256, b: 0}}
+{main_item}\
     - !Item
       name: Agent
       positions:
@@ -89,17 +109,12 @@ arenas:
       - !Vector3 {{x: 1.0, y: {ramp_height:.1f}, z: 10.0}}
       colors:
       - !RGB {{r: 165, g: 148, b: 255}}
-    - !Item
-      name: GoodGoalMulti
-      positions:
-      - !Vector3 {{x: 9.0, y: {goal_multi_y:.1f}, z: 15.0}}
-      rotations:
-      - 0
-      sizes:
-      - !Vector3 {{x: 1.0, y: 1.0, z: 1.0}}
-      colors:
-      - !RGB {{r: 255, g: 255, b: 0}}
-"""
+{ramp_item}\
+{wall_item}"""
+
+
+def type_slug(t: str) -> str:
+    return t.lower().replace("goodgoal", "good_goal").replace("goodgoalmulti", "good_goalmulti") if t != "absent" else "absent"
 
 
 def main():
@@ -119,10 +134,14 @@ def main():
         heights.append(h)
         h += args.step
 
-    print(f"Generating {len(heights)} config(s) in {CONFIGS_DIR}/")
-    for h in heights:
-        filename = CONFIGS_DIR / f"ramp_height_{h:.0f}.yml"
-        filename.write_text(make_arena(h))
+    slugs = {t: t.lower() for t in GOAL_TYPES}
+
+    combos = list(product(heights, GOAL_TYPES, GOAL_TYPES, GOAL_TYPES))
+    print(f"Generating {len(combos)} config(s) in {CONFIGS_DIR}/")
+
+    for h, main_type, ramp_type, wall_type in combos:
+        filename = CONFIGS_DIR / f"ramp_{h:.0f}_main_{slugs[main_type]}_ramp_{slugs[ramp_type]}_wall_{slugs[wall_type]}.yml"
+        filename.write_text(make_arena(h, main_type, ramp_type, wall_type))
         print(f"  wrote {filename.name}")
 
 

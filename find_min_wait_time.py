@@ -16,6 +16,7 @@ import sys
 import numpy as np
 from pathlib import Path
 from mlagents_envs.base_env import ActionTuple
+from config_utils import add_filter_args, get_configs
 
 # Add the local animal-ai-python package to the path
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -102,14 +103,12 @@ def find_min_noop(config_file: str, verbose: bool) -> int:
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--verbose", action="store_true", help="Print each trial as it runs")
+    add_filter_args(parser)
     args = parser.parse_args()
 
-    configs = sorted(
-        CONFIGS_DIR.glob("ramp_height_*.yml"),
-        key=lambda p: float(p.stem.removeprefix("ramp_height_")),
-    )
+    configs = get_configs(args)
     if not configs:
-        print(f"No ramp_height_*.yml files found in {CONFIGS_DIR}")
+        print(f"No matching configs found in {CONFIGS_DIR}")
         return
 
     results = []
