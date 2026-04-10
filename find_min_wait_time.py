@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import csv
 import os
 import sys
 import numpy as np
@@ -124,6 +125,14 @@ def main():
     print(f"{'-' * name_w}  ----------")
     for name, noops in results:
         print(f"{name:<{name_w}}  {noops}")
+
+    # Write CSV
+    csv_path = Path(__file__).parent / "results.csv"
+    with csv_path.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["filename", "min_noops"])
+        writer.writerows(results)
+    print(f"\nResults written to {csv_path}")
 
 
 if __name__ == "__main__":
