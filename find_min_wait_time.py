@@ -1,8 +1,9 @@
 """
 Drives the AnimalAI agent with N no-op steps followed by forwards movement.
-For each YAML config in the configs/ folder, finds the minimum number of no-ops
-needed for the rolling reward (GoodGoalMulti) to reach the agent before the
-episode-ending goal (GoodGoal) is collected.
+For each unique ramp height found in the configs/ folder, runs one representative
+config and finds the minimum number of no-ops needed for the rolling reward
+(GoodGoalMulti) to reach the agent before the episode-ending goal (GoodGoal)
+is collected.
 
 Usage:
     uv run python find_min_wait_time.py           # table output only
@@ -106,10 +107,19 @@ def main():
     add_filter_args(parser)
     args = parser.parse_args()
 
-    configs = get_configs(args)
-    if not configs:
+    all_configs = get_configs(args)
+    if not all_configs:
         print(f"No matching configs found in {CONFIGS_DIR}")
         return
+
+    # One representative config per ramp height is sufficient
+    seen_heights = set()
+    configs = []
+    for config in all_configs:
+        height = int(config.stem.split("_")[1])
+        if height not in seen_heights:
+            seen_heights.add(height)
+            configs.append(config)
 
     results = []
     for config in configs:
