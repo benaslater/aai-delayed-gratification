@@ -17,7 +17,7 @@ import sys
 import numpy as np
 from pathlib import Path
 from mlagents_envs.base_env import ActionTuple
-from config_utils import add_filter_args, get_configs
+from config_utils import get_configs
 
 # Add the local animal-ai-python package to the path
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,12 +28,18 @@ from animalai.environment import AnimalAIEnvironment
 AAI_EXE_PATH = os.environ["AAI_EXE_PATH"]
 CONFIGS_DIR = Path(__file__).parent / "configs"
 
+# This script always tests the specific scenario where the agent must collect
+# the rolling reward (GoodGoalMulti) on the ramp before the terminal goal (GoodGoal).
+MAIN_TYPE = "goodgoal"
+RAMP_GOAL_TYPE = "goodgoalmulti"
+
 forwards_action = ActionTuple(np.zeros((1, 0), dtype=np.float32), np.array([[1, 0]], dtype=np.int32))
 nothing_action  = ActionTuple(np.zeros((1, 0), dtype=np.float32), np.array([[0, 0]], dtype=np.int32))
 
 
 def run_episode(config_file: str, n_noop: int) -> float:
-    """Run one episode: n_noop no-op steps then forwards until done. Returns total reward."""
+    """Run one episode: n_noop no-op steps then forwards until done.
+    Returns total_reward."""
     env = AnimalAIEnvironment(
         file_name=AAI_EXE_PATH,
         arenas_configurations=config_file,
@@ -80,12 +86,15 @@ def try_noop(config_file: str, n: int, verbose: bool) -> bool:
 
 
 def find_min_noop(config_file: str, verbose: bool) -> int:
-    """Return the minimum number of no-ops for the rolling reward to be collected."""
+    """Return the minimum passing no-op count."""
     # Phase 1: exponential search to find an upper bound
     if try_noop(config_file, 0, verbose):
+        print("====0====")
         return 0
     n = 1
+    print("====1====")
     while not try_noop(config_file, n, verbose):
+        print(f"===={n}====")
         n *= 2
     hi = n
     lo = n // 2  # last known failure
@@ -104,8 +113,15 @@ def find_min_noop(config_file: str, verbose: bool) -> int:
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--verbose", action="store_true", help="Print each trial as it runs")
-    add_filter_args(parser)
+    parser.add_argument("--ramp", type=int, nargs="+", metavar="H",
+                        help="Ramp height(s) to include, e.g. --ramp 2 4 6")
+    parser.add_argument("--wall", nargs="+", metavar="TYPE",
+                        help="Wall goal type(s) to include")
     args = parser.parse_args()
+    # get_configs (config_utils.py) reads main and ramp_goal off the args
+    # namespace, so set them here as fixed values for this script.
+    args.main = [MAIN_TYPE]
+    args.ramp_goal = [RAMP_GOAL_TYPE]
 
     all_configs = get_configs(args)
     if not all_configs:
@@ -117,6 +133,8 @@ def main():
     configs = []
     for config in all_configs:
         height = int(config.stem.split("_")[1])
+        if height <= 0:
+            continue
         if height not in seen_heights:
             seen_heights.add(height)
             configs.append(config)
