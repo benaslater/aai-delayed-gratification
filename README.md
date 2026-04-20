@@ -1,6 +1,8 @@
 # AAI delayed gratification task instance generation
 
-Generate Animal-AI arena configs and find the minimum agent wait time for each.
+This repo supports the generation of task instances for a project evaluating embodied inhibitory control capabilities in AI agents, using Animal-AI. See the project writeup [here](https://www.kaggle.com/competitions/kaggle-measuring-agi/writeups/new-writeup-1775378504699) for more details.
+
+At a high level, this repo generates Animal-AI arena configs and find the minimum agent wait time for each.
 
 ## Setup
 
